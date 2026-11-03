@@ -138,8 +138,10 @@
 }
 
 @layer utilities {
+  /* fill backwards (not both): a lingering transform/opacity would keep every
+     row as its own stacking context and trap dropdown menus inside their row */
   .anim-rise {
-    animation: rise 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: rise 0.35s cubic-bezier(0.22, 1, 0.36, 1) backwards;
   }
   .anim-pop {
     animation: pop-in 0.18s cubic-bezier(0.22, 1, 0.36, 1) both;

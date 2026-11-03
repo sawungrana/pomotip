@@ -116,9 +116,9 @@ export default function TaskList(props: Props) {
           return (
             <li
               key={task.id}
-              className={`anim-rise flex items-center gap-3 rounded-xl border-2 border-ink p-3 ${
+              className={`anim-rise relative flex items-center gap-3 rounded-xl border-2 border-ink p-3 ${
                 active ? 'bg-sun-soft' : 'bg-paper'
-              }`}
+              } ${menuId === task.id ? 'z-30' : ''}`}
               style={{ animationDelay: `${Math.min(i, 8) * 35}ms` }}
             >
               <button
