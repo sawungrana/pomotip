@@ -2,7 +2,7 @@
 
 ![pomotip, a local-first pomodoro timer with an active task selected](screenshot.png)
 
-A pomodoro timer that lives in your browser. No login, no server, no analytics. Your tasks and your pomodoro history stay on your device, in this browser, and that is the whole trick.
+A pomodoro timer that is only living in our browser. No login, no server, no analytics. Tasks and pomodoro history stay on our device, in this browser.
 
 ## Why
 
