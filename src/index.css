@@ -1,0 +1,188 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #2b2622;
+  --color-cream: #fbf6ee;
+  --color-paper: #fffdf8;
+  --color-coral: #ff7a6b;
+  --color-coral-soft: #ffe1dc;
+  --color-mint: #4fc9a4;
+  --color-mint-soft: #d8f3e9;
+  --color-peri: #8b97f0;
+  --color-peri-soft: #e2e5fc;
+  --color-sun: #ffd66b;
+  --color-sun-soft: #fff3d1;
+
+  --shadow-brutal-sm: 3px 3px 0 0 var(--color-ink);
+  --shadow-brutal: 5px 5px 0 0 var(--color-ink);
+  --shadow-brutal-lg: 7px 7px 0 0 var(--color-ink);
+
+  --font-sans: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-ring {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.72;
+  }
+}
+
+@keyframes draw-check {
+  from {
+    stroke-dashoffset: 20;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes bar-grow {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@layer base {
+  html {
+    overflow-x: clip;
+  }
+  body {
+    @apply bg-cream text-ink antialiased;
+    overflow-x: clip;
+  }
+  ::selection {
+    @apply bg-sun text-ink;
+  }
+}
+
+@layer components {
+  .brutal {
+    @apply rounded-2xl border-2 border-ink bg-paper;
+    box-shadow: var(--shadow-brutal);
+  }
+
+  .btn {
+    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-ink font-bold select-none;
+    box-shadow: var(--shadow-brutal-sm);
+    transition:
+      transform 0.06s ease,
+      box-shadow 0.06s ease;
+  }
+  .btn:hover {
+    @apply brightness-[1.03];
+  }
+  .btn:active {
+    transform: translate(3px, 3px);
+    box-shadow: 0 0 0 0 var(--color-ink);
+  }
+  .btn:disabled {
+    @apply pointer-events-none opacity-50;
+  }
+
+  .icon-btn {
+    @apply inline-flex size-9 cursor-pointer items-center justify-center rounded-lg border-2 border-ink bg-paper;
+    box-shadow: var(--shadow-brutal-sm);
+    transition:
+      transform 0.06s ease,
+      box-shadow 0.06s ease;
+  }
+  .icon-btn:active {
+    transform: translate(3px, 3px);
+    box-shadow: 0 0 0 0 var(--color-ink);
+  }
+
+  .tab {
+    @apply flex-1 cursor-pointer rounded-lg px-2 py-2 text-sm font-bold whitespace-nowrap transition-colors;
+  }
+
+  .menu-item {
+    @apply w-full cursor-pointer rounded-lg px-3 py-2.5 text-left text-sm font-bold transition-colors hover:bg-cream disabled:pointer-events-none disabled:opacity-40;
+  }
+}
+
+@layer utilities {
+  .anim-rise {
+    animation: rise 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .anim-pop {
+    animation: pop-in 0.18s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .anim-fade {
+    animation: fade-in 0.15s ease both;
+  }
+  .anim-pulse-ring {
+    animation: pulse-ring 2.2s ease-in-out infinite;
+  }
+  .check-anim {
+    stroke-dasharray: 20;
+    animation: draw-check 0.25s ease-out both;
+  }
+  .bar-anim {
+    transform-box: fill-box;
+    transform-origin: bottom;
+    animation: bar-grow 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* fixed-width digits so the clock never wobbles */
+  .clock-digit {
+    display: inline-block;
+    width: 0.64em;
+    text-align: center;
+  }
+  .clock-sep {
+    display: inline-block;
+    width: 0.34em;
+    text-align: center;
+  }
+
+  .nav-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
