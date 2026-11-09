@@ -1,8 +1,19 @@
-import type { Bucket } from '../lib/stats'
+import { metricValue, type Bucket, type Metric } from '../lib/stats'
 import { fmtMinutes } from '../lib/time'
 
-export default function BarChart({ bars }: { bars: Bucket[] }) {
-  const max = Math.max(...bars.map((b) => b.value), 1)
+const METRIC_NAME: Record<Metric, string> = {
+  minutes: 'Focus time',
+  sessions: 'Sessions',
+  tasks: 'Tasks',
+}
+
+function format(metric: Metric, v: number): string {
+  return metric === 'minutes' ? fmtMinutes(v) : String(v)
+}
+
+export default function BarChart({ bars, metric }: { bars: Bucket[]; metric: Metric }) {
+  const values = bars.map((b) => metricValue(b, metric))
+  const max = Math.max(...values, 1)
   const slot = 52
   const padL = 8
   const padB = 26
@@ -13,7 +24,12 @@ export default function BarChart({ bars }: { bars: Bucket[] }) {
   const baseline = H - padB
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Focus time chart">
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      className="w-full"
+      role="img"
+      aria-label={`${METRIC_NAME[metric]} chart`}
+    >
       <line
         x1={0}
         y1={baseline}
@@ -23,13 +39,14 @@ export default function BarChart({ bars }: { bars: Bucket[] }) {
         strokeWidth={2}
       />
       {bars.map((b, i) => {
-        const h = b.value > 0 ? Math.max(8, (b.value / max) * chartH) : 0
+        const v = values[i]
+        const h = v > 0 ? Math.max(8, (v / max) * chartH) : 0
         const barW = 30
         const x = padL + i * slot + (slot - barW) / 2
         const y = baseline - h
         return (
           <g key={i}>
-            {b.value > 0 && (
+            {v > 0 && (
               <>
                 <rect
                   x={x}
@@ -53,7 +70,7 @@ export default function BarChart({ bars }: { bars: Bucket[] }) {
                   className="anim-fade"
                   style={{ animationDelay: `${i * 40 + 150}ms` }}
                 >
-                  {fmtMinutes(b.value)}
+                  {format(metric, v)}
                 </text>
               </>
             )}
@@ -69,7 +86,7 @@ export default function BarChart({ bars }: { bars: Bucket[] }) {
               {b.label}
             </text>
             <rect x={padL + i * slot} y={0} width={slot} height={H} fill="transparent">
-              <title>{`${b.label} — ${fmtMinutes(b.value)} · ${b.sessions} session${b.sessions === 1 ? '' : 's'}`}</title>
+              <title>{`${b.label} — ${fmtMinutes(b.minutes)} · ${b.sessions} session${b.sessions === 1 ? '' : 's'} · ${b.tasks} task${b.tasks === 1 ? '' : 's'}`}</title>
             </rect>
           </g>
         )
