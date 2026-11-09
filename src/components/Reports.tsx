@@ -8,17 +8,24 @@ import {
   taskFocusInRange,
   tasksCompletedInRange,
   weeklyBuckets,
+  type TaskStat,
 } from '../lib/stats'
 import { DAY, fmtMinutes, startOfDay, startOfMonth, startOfWeek, startOfYear } from '../lib/time'
 import BarChart from './BarChart'
 
 type Tab = 'daily' | 'weekly' | 'monthly' | 'annual'
+type GroupBy = 'time' | 'task'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'daily', label: 'Daily' },
   { id: 'weekly', label: 'Weekly' },
   { id: 'monthly', label: 'Monthly' },
   { id: 'annual', label: 'Annual' },
+]
+
+const GROUPS: { id: GroupBy; label: string }[] = [
+  { id: 'time', label: 'By time' },
+  { id: 'task', label: 'By task' },
 ]
 
 interface Props {
@@ -37,8 +44,43 @@ function Stat({ value, label }: { value: string; label: string }) {
   )
 }
 
+/** Same chart, grouped by task instead of by day/week/month/year. */
+function TaskBars({ rows, maxMinutes }: { rows: TaskStat[]; maxMinutes: number }) {
+  return (
+    <ul className="space-y-3 py-1">
+      {rows.map((r) => (
+        <li key={r.key}>
+          <div className="flex items-baseline justify-between gap-3">
+            <span
+              title={r.title}
+              className={`line-clamp-2 min-w-0 text-sm font-bold break-words ${
+                r.key === '__none__' ? 'text-ink/50' : ''
+              }`}
+            >
+              {r.title}
+            </span>
+            <span className="shrink-0 text-xs font-bold text-ink/70 tabular-nums">
+              {fmtMinutes(r.minutes)}
+            </span>
+          </div>
+          <div
+            className="mt-1 h-4 overflow-hidden rounded-md border-2 border-ink bg-cream"
+            title={`${r.sessions} session${r.sessions === 1 ? '' : 's'} · ${fmtMinutes(r.minutes)}`}
+          >
+            <div
+              className="h-full bg-coral"
+              style={{ width: `${Math.max(4, (r.minutes / maxMinutes) * 100)}%` }}
+            />
+          </div>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 export default function Reports({ sessions, tasks }: Props) {
   const [tab, setTab] = useState<Tab>('daily')
+  const [groupBy, setGroupBy] = useState<GroupBy>('time')
   const now = Date.now()
 
   const { bars, range } = useMemo(() => {
@@ -95,50 +137,43 @@ export default function Reports({ sessions, tasks }: Props) {
         <Stat value={String(done)} label="Tasks done" />
       </div>
 
-      <div
-        key={tab}
-        className="anim-fade rounded-xl border-2 border-ink/15 bg-paper p-2 sm:p-3"
-      >
-        <BarChart bars={bars} />
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className="text-sm font-extrabold">Chart</span>
+        <div
+          role="group"
+          aria-label="Group chart by"
+          className="flex gap-0.5 rounded-lg border-2 border-ink bg-paper p-0.5"
+        >
+          {GROUPS.map((g) => (
+            <button
+              key={g.id}
+              onClick={() => setGroupBy(g.id)}
+              aria-pressed={groupBy === g.id}
+              className={`rounded-md px-2.5 py-1 text-xs font-bold transition-colors ${
+                groupBy === g.id ? 'bg-ink text-paper' : 'cursor-pointer text-ink/60 hover:bg-cream'
+              }`}
+            >
+              {g.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {byTask.length > 0 && (
-        <div className="mt-4">
-          <div className="mb-2 flex items-baseline justify-between">
-            <h3 className="text-sm font-extrabold">By task</h3>
-            <span className="text-xs font-semibold text-ink/50">pomodoros × focus time</span>
-          </div>
-          <ul key={`tasks-${tab}`} className="anim-fade space-y-2">
-            {byTask.map((r) => (
-              <li
-                key={r.key}
-                className="rounded-xl border-2 border-ink/15 bg-paper px-2.5 py-2 sm:px-3"
-              >
-                <div className="flex items-baseline justify-between gap-3">
-                  <span
-                    className={`line-clamp-2 min-w-0 text-sm font-bold break-words ${
-                      r.key === '__none__' ? 'text-ink/50' : ''
-                    }`}
-                  >
-                    {r.title}
-                  </span>
-                  <span className="shrink-0 text-xs font-bold text-ink/60 tabular-nums">
-                    {r.sessions} × {fmtMinutes(r.minutes)}
-                  </span>
-                </div>
-                <div className="mt-1.5 h-2.5 overflow-hidden rounded-full border-2 border-ink/15 bg-cream">
-                  <div
-                    className="h-full rounded-full bg-coral"
-                    style={{ width: `${Math.max(4, (r.minutes / maxTaskMinutes) * 100)}%` }}
-                  />
-                </div>
-              </li>
-            ))}
-          </ul>
+      <div className="rounded-xl border-2 border-ink/15 bg-paper p-2 sm:p-3">
+        <div key={`${groupBy}-${tab}`} className="anim-fade">
+          {groupBy === 'time' ? (
+            <BarChart bars={bars} />
+          ) : byTask.length > 0 ? (
+            <TaskBars rows={byTask} maxMinutes={maxTaskMinutes} />
+          ) : (
+            <p className="py-8 text-center text-sm font-semibold text-ink/50">
+              No focus sessions in this range yet.
+            </p>
+          )}
         </div>
-      )}
+      </div>
 
-      {totals.count === 0 && (
+      {groupBy === 'time' && totals.count === 0 && (
         <p className="mt-3 text-center text-sm font-semibold text-ink/50">
           No focus sessions in this view yet — finish a pomodoro to see data here.
         </p>
