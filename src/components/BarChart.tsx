@@ -4,7 +4,7 @@ import { fmtMinutes } from '../lib/time'
 const METRIC_NAME: Record<Metric, string> = {
   minutes: 'Focus time',
   sessions: 'Sessions',
-  tasks: 'Tasks',
+  tasks: 'Tasks done',
 }
 
 function format(metric: Metric, v: number): string {
@@ -86,7 +86,7 @@ export default function BarChart({ bars, metric }: { bars: Bucket[]; metric: Met
               {b.label}
             </text>
             <rect x={padL + i * slot} y={0} width={slot} height={H} fill="transparent">
-              <title>{`${b.label} — ${fmtMinutes(b.minutes)} · ${b.sessions} session${b.sessions === 1 ? '' : 's'} · ${b.tasks} task${b.tasks === 1 ? '' : 's'}`}</title>
+              <title>{`${b.label} — ${fmtMinutes(b.minutes)} · ${b.sessions} session${b.sessions === 1 ? '' : 's'} · ${b.tasksDone} task${b.tasksDone === 1 ? '' : 's'} done`}</title>
             </rect>
           </g>
         )

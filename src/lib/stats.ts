@@ -8,7 +8,8 @@ export interface Bucket {
   label: string
   minutes: number
   sessions: number
-  tasks: number
+  /** tasks the user ticked off in this bucket, session or not */
+  tasksDone: number
 }
 
 function focusIn(sessions: Session[], from: number, to: number): Session[] {
@@ -19,50 +20,51 @@ function sumMinutes(list: Session[]): number {
   return list.reduce((acc, s) => acc + s.duration, 0)
 }
 
-function distinctTasks(list: Session[]): number {
-  const ids = new Set<string>()
-  for (const s of list) if (s.taskId) ids.add(s.taskId)
-  return ids.size
+export function completedTasksIn(tasks: Task[], from: number, to: number): number {
+  let n = 0
+  for (const t of tasks) {
+    if (t.done && t.completedAt !== null && t.completedAt >= from && t.completedAt < to) n++
+  }
+  return n
 }
 
 export function metricValue(b: Bucket, metric: Metric): number {
-  return metric === 'minutes' ? b.minutes : metric === 'sessions' ? b.sessions : b.tasks
+  return metric === 'minutes' ? b.minutes : metric === 'sessions' ? b.sessions : b.tasksDone
 }
 
-export function dailyBuckets(sessions: Session[], now: number): Bucket[] {
+export function dailyBuckets(sessions: Session[], tasks: Task[], now: number): Bucket[] {
   const out: Bucket[] = []
   for (let i = 6; i >= 0; i--) {
     const start = startOfDay(now - i * DAY)
-    const list = focusIn(sessions, start, start + DAY)
+    const end = start + DAY
+    const list = focusIn(sessions, start, end)
     out.push({
-      label:
-        i === 0
-          ? 'Today'
-          : new Date(start).toLocaleDateString(undefined, { weekday: 'short' }),
+      label: i === 0 ? 'Today' : new Date(start).toLocaleDateString(undefined, { weekday: 'short' }),
       minutes: sumMinutes(list),
       sessions: list.length,
-      tasks: distinctTasks(list),
+      tasksDone: completedTasksIn(tasks, start, end),
     })
   }
   return out
 }
 
-export function weeklyBuckets(sessions: Session[], now: number): Bucket[] {
+export function weeklyBuckets(sessions: Session[], tasks: Task[], now: number): Bucket[] {
   const out: Bucket[] = []
   for (let i = 7; i >= 0; i--) {
     const start = startOfWeek(now - i * 7 * DAY)
-    const list = focusIn(sessions, start, start + 7 * DAY)
+    const end = start + 7 * DAY
+    const list = focusIn(sessions, start, end)
     out.push({
       label: new Date(start).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }),
       minutes: sumMinutes(list),
       sessions: list.length,
-      tasks: distinctTasks(list),
+      tasksDone: completedTasksIn(tasks, start, end),
     })
   }
   return out
 }
 
-export function monthlyBuckets(sessions: Session[], now: number): Bucket[] {
+export function monthlyBuckets(sessions: Session[], tasks: Task[], now: number): Bucket[] {
   const out: Bucket[] = []
   const base = startOfMonth(now)
   for (let i = 11; i >= 0; i--) {
@@ -75,13 +77,13 @@ export function monthlyBuckets(sessions: Session[], now: number): Bucket[] {
       label: new Date(start).toLocaleDateString(undefined, { month: 'short' }),
       minutes: sumMinutes(list),
       sessions: list.length,
-      tasks: distinctTasks(list),
+      tasksDone: completedTasksIn(tasks, start, end),
     })
   }
   return out
 }
 
-export function annualBuckets(sessions: Session[], now: number): Bucket[] {
+export function annualBuckets(sessions: Session[], tasks: Task[], now: number): Bucket[] {
   const out: Bucket[] = []
   for (let i = 4; i >= 0; i--) {
     const start = startOfYear(now - i * 365 * DAY)
@@ -91,7 +93,7 @@ export function annualBuckets(sessions: Session[], now: number): Bucket[] {
       label: String(new Date(start).getFullYear()),
       minutes: sumMinutes(list),
       sessions: list.length,
-      tasks: distinctTasks(list),
+      tasksDone: completedTasksIn(tasks, start, end),
     })
   }
   return out
@@ -103,7 +105,5 @@ export function rangeTotals(sessions: Session[], from: number, to: number) {
 }
 
 export function tasksCompletedInRange(tasks: Task[], from: number, to: number): number {
-  return tasks.filter(
-    (t) => t.done && t.completedAt !== null && t.completedAt >= from && t.completedAt < to,
-  ).length
+  return completedTasksIn(tasks, from, to)
 }

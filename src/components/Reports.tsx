@@ -53,26 +53,26 @@ export default function Reports({ sessions, tasks }: Props) {
     switch (tab) {
       case 'daily':
         return {
-          bars: dailyBuckets(sessions, now),
+          bars: dailyBuckets(sessions, tasks, now),
           range: [startOfDay(now), startOfDay(now) + DAY] as const,
         }
       case 'weekly':
         return {
-          bars: weeklyBuckets(sessions, now),
+          bars: weeklyBuckets(sessions, tasks, now),
           range: [startOfWeek(now), startOfWeek(now) + 7 * DAY] as const,
         }
       case 'monthly': {
         const start = startOfMonth(now)
         const end = new Date(start).setMonth(new Date(start).getMonth() + 1)
-        return { bars: monthlyBuckets(sessions, now), range: [start, end] as const }
+        return { bars: monthlyBuckets(sessions, tasks, now), range: [start, end] as const }
       }
       case 'annual': {
         const start = startOfYear(now)
         const end = startOfYear(now + 366 * DAY)
-        return { bars: annualBuckets(sessions, now), range: [start, end] as const }
+        return { bars: annualBuckets(sessions, tasks, now), range: [start, end] as const }
       }
     }
-  }, [tab, sessions, now])
+  }, [tab, sessions, tasks, now])
 
   const totals = rangeTotals(sessions, range[0], range[1])
   const done = tasksCompletedInRange(tasks, range[0], range[1])
