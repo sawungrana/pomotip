@@ -5,6 +5,7 @@ import {
   dailyBuckets,
   monthlyBuckets,
   rangeTotals,
+  taskFocusInRange,
   tasksCompletedInRange,
   weeklyBuckets,
 } from '../lib/stats'
@@ -67,6 +68,8 @@ export default function Reports({ sessions, tasks }: Props) {
 
   const totals = rangeTotals(sessions, range[0], range[1])
   const done = tasksCompletedInRange(tasks, range[0], range[1])
+  const byTask = taskFocusInRange(sessions, tasks, range[0], range[1])
+  const maxTaskMinutes = Math.max(...byTask.map((r) => r.minutes), 1)
 
   return (
     <section className="brutal p-4 sm:p-6">
@@ -98,6 +101,42 @@ export default function Reports({ sessions, tasks }: Props) {
       >
         <BarChart bars={bars} />
       </div>
+
+      {byTask.length > 0 && (
+        <div className="mt-4">
+          <div className="mb-2 flex items-baseline justify-between">
+            <h3 className="text-sm font-extrabold">By task</h3>
+            <span className="text-xs font-semibold text-ink/50">pomodoros × focus time</span>
+          </div>
+          <ul key={`tasks-${tab}`} className="anim-fade space-y-2">
+            {byTask.map((r) => (
+              <li
+                key={r.key}
+                className="rounded-xl border-2 border-ink/15 bg-paper px-2.5 py-2 sm:px-3"
+              >
+                <div className="flex items-baseline justify-between gap-3">
+                  <span
+                    className={`line-clamp-2 min-w-0 text-sm font-bold break-words ${
+                      r.key === '__none__' ? 'text-ink/50' : ''
+                    }`}
+                  >
+                    {r.title}
+                  </span>
+                  <span className="shrink-0 text-xs font-bold text-ink/60 tabular-nums">
+                    {r.sessions} × {fmtMinutes(r.minutes)}
+                  </span>
+                </div>
+                <div className="mt-1.5 h-2.5 overflow-hidden rounded-full border-2 border-ink/15 bg-cream">
+                  <div
+                    className="h-full rounded-full bg-coral"
+                    style={{ width: `${Math.max(4, (r.minutes / maxTaskMinutes) * 100)}%` }}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {totals.count === 0 && (
         <p className="mt-3 text-center text-sm font-semibold text-ink/50">

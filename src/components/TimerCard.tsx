@@ -44,16 +44,25 @@ export default function TimerCard({ timer, settings, activeTask }: Props) {
     <section className={`brutal ${ui.soft} p-4 sm:p-8`}>
       {/* mode tabs */}
       <div className="rounded-xl! flex gap-1 border-2 border-ink bg-paper p-1 shadow-none!">
-        {MODES.map((m) => (
-          <button
-            key={m}
-            onClick={() => timer.setMode(m)}
-            className={`tab ${timer.mode === m ? MODE_UI[m].tabActive : 'hover:bg-cream'}`}
-          >
-            <span className="sm:hidden">{MODE_UI[m].label.split(' ')[0]}</span>
-            <span className="hidden sm:inline">{MODE_UI[m].label}</span>
-          </button>
-        ))}
+        {MODES.map((m) => {
+          const stashed = m !== timer.mode && timer.stashedModes.includes(m)
+          return (
+            <button
+              key={m}
+              onClick={() => timer.setMode(m)}
+              title={stashed ? 'Paused - resumes where you left off' : undefined}
+              className={`tab ${timer.mode === m ? MODE_UI[m].tabActive : 'hover:bg-cream'}`}
+            >
+              <span className="inline-flex items-center justify-center gap-1.5">
+                {stashed && (
+                  <span className="size-1.5 rounded-full bg-ink/50" aria-hidden="true" />
+                )}
+                <span className="sm:hidden">{MODE_UI[m].label.split(' ')[0]}</span>
+                <span className="hidden sm:inline">{MODE_UI[m].label}</span>
+              </span>
+            </button>
+          )
+        })}
       </div>
 
       {/* ring + clock */}
@@ -101,7 +110,7 @@ export default function TimerCard({ timer, settings, activeTask }: Props) {
       </div>
 
       {/* active task */}
-      <div className="mt-4 px-2 text-center text-sm font-semibold text-ink/70">
+      <div className="mt-4 px-2 text-center text-sm font-semibold break-words text-ink/70">
         {activeTask ? (
           <span>
             Working on <span className="font-bold text-ink">{activeTask.title}</span>

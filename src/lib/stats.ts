@@ -89,3 +89,34 @@ export function tasksCompletedInRange(tasks: Task[], from: number, to: number): 
     (t) => t.done && t.completedAt !== null && t.completedAt >= from && t.completedAt < to,
   ).length
 }
+
+export interface TaskStat {
+  key: string
+  title: string
+  minutes: number
+  sessions: number
+}
+
+/** Focus time per task in a range, biggest first. Sessions without a task get their own row. */
+export function taskFocusInRange(
+  sessions: Session[],
+  tasks: Task[],
+  from: number,
+  to: number,
+): TaskStat[] {
+  const titles = new Map(tasks.map((t) => [t.id, t.title]))
+  const byTask = new Map<string, TaskStat>()
+
+  for (const s of focusIn(sessions, from, to)) {
+    const key = s.taskId ?? '__none__'
+    const title = s.taskId ? (titles.get(s.taskId) ?? 'Deleted task') : 'No task'
+    const cur = byTask.get(key) ?? { key, title, minutes: 0, sessions: 0 }
+    cur.minutes += s.duration
+    cur.sessions += 1
+    byTask.set(key, cur)
+  }
+
+  return [...byTask.values()].sort(
+    (a, b) => b.minutes - a.minutes || b.sessions - a.sessions,
+  )
+}

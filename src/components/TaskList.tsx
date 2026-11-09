@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Task } from '../types'
 
 interface Props {
@@ -51,10 +51,222 @@ function MenuItem({
   )
 }
 
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 16 16"
+      fill="none"
+      aria-hidden="true"
+      className={`shrink-0 transition-transform duration-150 ${open ? 'rotate-180' : ''}`}
+    >
+      <path
+        d="M4 6 L8 10 L12 6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+/**
+ * Two-line clamped title. A small chevron appears only when the text actually
+ * overflows, so long names stay readable without making every row taller.
+ */
+function TaskTitle({
+  task,
+  active,
+  expanded,
+  onToggleExpand,
+  onSetActive,
+}: {
+  task: Task
+  active: boolean
+  expanded: boolean
+  onToggleExpand: () => void
+  onSetActive: () => void
+}) {
+  const ref = useRef<HTMLSpanElement>(null)
+  const [truncated, setTruncated] = useState(false)
+
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const check = () => setTruncated(el.scrollHeight > el.clientHeight + 1)
+    check()
+    const ro = new ResizeObserver(check)
+    ro.observe(el)
+    window.addEventListener('resize', check)
+    void document.fonts?.ready.then(check).catch(() => {})
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', check)
+    }
+  }, [task.title, expanded])
+
+  const showToggle = truncated || expanded
+
+  const titleBlock = (
+    <>
+      <span
+        ref={ref}
+        className={`break-words font-bold ${expanded ? 'block' : 'line-clamp-2'} ${
+          task.done ? 'text-ink/40 line-through' : ''
+        }`}
+      >
+        {task.title}
+      </span>
+      {active && (
+        <span className="mt-0.5 block text-xs font-bold text-coral">● focusing on this</span>
+      )}
+    </>
+  )
+
+  return (
+    <div className="flex min-w-0 flex-1 items-start gap-1">
+      {task.done ? (
+        <span className="min-w-0 flex-1 py-1">{titleBlock}</span>
+      ) : (
+        <button
+          onClick={onSetActive}
+          className="min-w-0 flex-1 cursor-pointer py-1 text-left"
+          title={active ? 'Tap to stop focusing' : 'Set as active task'}
+        >
+          {titleBlock}
+        </button>
+      )}
+
+      {showToggle && (
+        <button
+          onClick={onToggleExpand}
+          aria-expanded={expanded}
+          aria-label={expanded ? 'Collapse task name' : 'Show full task name'}
+          className="mt-0.5 flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md border-2 border-ink/20 bg-paper text-ink/50 transition-colors hover:bg-cream"
+        >
+          <ChevronIcon open={expanded} />
+        </button>
+      )}
+    </div>
+  )
+}
+
+interface RowProps {
+  task: Task
+  active: boolean
+  menuOpen: boolean
+  menuRef: React.RefObject<HTMLDivElement | null>
+  animDelay: string
+  expanded: boolean
+  onToggle: () => void
+  onSetActive: () => void
+  onToggleMenu: () => void
+  onToggleExpand: () => void
+  onEstimate: (delta: number) => void
+  onDelete: () => void
+}
+
+function TaskRow({
+  task,
+  active,
+  menuOpen,
+  menuRef,
+  animDelay,
+  expanded,
+  onToggle,
+  onSetActive,
+  onToggleMenu,
+  onToggleExpand,
+  onEstimate,
+  onDelete,
+}: RowProps) {
+  return (
+    <li
+      className={`anim-rise relative flex items-center gap-3 rounded-xl border-2 border-ink p-3 ${
+        active ? 'bg-sun-soft' : 'bg-paper'
+      } ${menuOpen ? 'z-30' : ''}`}
+      style={{ animationDelay: animDelay }}
+    >
+      <button
+        onClick={onToggle}
+        aria-label={task.done ? 'Mark as not done' : 'Mark as done'}
+        className={`flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md border-2 border-ink transition-colors ${
+          task.done ? 'bg-mint' : 'bg-paper hover:bg-mint-soft'
+        }`}
+      >
+        {task.done && (
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path
+              d="M3 8.5 L6.5 12 L13 4.5"
+              className="check-anim"
+              stroke="var(--color-ink)"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        )}
+      </button>
+
+      <TaskTitle
+        task={task}
+        active={active}
+        expanded={expanded}
+        onToggleExpand={onToggleExpand}
+        onSetActive={onSetActive}
+      />
+
+      <span className="flex shrink-0 items-center gap-1 text-sm font-bold tabular-nums">
+        <PomoIcon />
+        {task.completedPomos}/{task.estimatedPomos}
+      </span>
+
+      <div className="relative shrink-0" ref={menuOpen ? menuRef : undefined}>
+        <button
+          onClick={onToggleMenu}
+          className="icon-btn size-8!"
+          aria-label="Task menu"
+          aria-expanded={menuOpen}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="var(--color-ink)">
+            <circle cx="8" cy="3" r="1.6" />
+            <circle cx="8" cy="8" r="1.6" />
+            <circle cx="8" cy="13" r="1.6" />
+          </svg>
+        </button>
+
+        {menuOpen && (
+          <div className="anim-pop rounded-xl! absolute top-full right-0 z-30 mt-1 w-44 border-2 border-ink bg-paper p-1 shadow-brutal-sm!">
+            {!task.done && (
+              <MenuItem onClick={onSetActive}>
+                {active ? 'Unset active' : 'Set as active'}
+              </MenuItem>
+            )}
+            <MenuItem disabled={task.estimatedPomos <= 1} onClick={() => onEstimate(-1)}>
+              Estimate − 1
+            </MenuItem>
+            <MenuItem disabled={task.estimatedPomos >= 20} onClick={() => onEstimate(1)}>
+              Estimate + 1
+            </MenuItem>
+            <div className="mx-1 my-1 border-t-2 border-ink/10" />
+            <MenuItem className="text-coral" onClick={onDelete}>
+              Delete
+            </MenuItem>
+          </div>
+        )}
+      </div>
+    </li>
+  )
+}
+
 export default function TaskList(props: Props) {
   const { tasks, activeTaskId, onAdd, onToggle, onDelete, onSetActive, onEstimate } = props
   const [title, setTitle] = useState('')
   const [menuId, setMenuId] = useState<string | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [doneOpen, setDoneOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -80,10 +292,34 @@ export default function TaskList(props: Props) {
     setTitle('')
   }
 
-  const sorted = [...tasks].sort(
-    (a, b) => Number(a.done) - Number(b.done) || a.createdAt - b.createdAt,
+  const pending = [...tasks]
+    .filter((t) => !t.done)
+    .sort((a, b) => a.createdAt - b.createdAt)
+  const doneTasks = [...tasks]
+    .filter((t) => t.done)
+    .sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0))
+  const remaining = pending.length
+
+  const renderTask = (task: Task, i: number, step: number) => (
+    <TaskRow
+      key={task.id}
+      task={task}
+      active={task.id === activeTaskId && !task.done}
+      menuOpen={menuId === task.id}
+      menuRef={menuRef}
+      animDelay={`${Math.min(i, 8) * step}ms`}
+      expanded={expandedId === task.id}
+      onToggle={() => onToggle(task.id)}
+      onSetActive={() => onSetActive(task.id === activeTaskId ? null : task.id)}
+      onToggleMenu={() => setMenuId((m) => (m === task.id ? null : task.id))}
+      onToggleExpand={() => setExpandedId((id) => (id === task.id ? null : task.id))}
+      onEstimate={(delta) => onEstimate(task.id, delta)}
+      onDelete={() => {
+        onDelete(task.id)
+        setMenuId(null)
+      }}
+    />
   )
-  const remaining = tasks.filter((t) => !t.done).length
 
   return (
     <section className="brutal p-4 sm:p-6">
@@ -106,115 +342,38 @@ export default function TaskList(props: Props) {
       </div>
 
       <ul className="mt-4 space-y-2">
-        {sorted.length === 0 && (
+        {tasks.length === 0 && (
           <li className="rounded-xl border-2 border-dashed border-ink/25 px-3 py-6 text-center text-sm font-semibold text-ink/50">
             No tasks yet — add one above
           </li>
         )}
-        {sorted.map((task, i) => {
-          const active = task.id === activeTaskId && !task.done
-          return (
-            <li
-              key={task.id}
-              className={`anim-rise relative flex items-center gap-3 rounded-xl border-2 border-ink p-3 ${
-                active ? 'bg-sun-soft' : 'bg-paper'
-              } ${menuId === task.id ? 'z-30' : ''}`}
-              style={{ animationDelay: `${Math.min(i, 8) * 35}ms` }}
+
+        {pending.map((task, i) => renderTask(task, i, 35))}
+
+        {pending.length === 0 && doneTasks.length > 0 && (
+          <li className="rounded-xl border-2 border-dashed border-ink/25 px-3 py-5 text-center text-sm font-semibold text-ink/50">
+            All done — nothing left for today.
+          </li>
+        )}
+
+        {doneTasks.length > 0 && (
+          <li>
+            <button
+              type="button"
+              onClick={() => setDoneOpen((v) => !v)}
+              aria-expanded={doneOpen}
+              className="flex w-full cursor-pointer items-center justify-between rounded-xl border-2 border-dashed border-ink/25 bg-paper px-3 py-2.5 text-sm font-bold text-ink/60 transition-colors hover:bg-cream"
             >
-              <button
-                onClick={() => onToggle(task.id)}
-                aria-label={task.done ? 'Mark as not done' : 'Mark as done'}
-                className={`flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md border-2 border-ink transition-colors ${
-                  task.done ? 'bg-mint' : 'bg-paper hover:bg-mint-soft'
-                }`}
-              >
-                {task.done && (
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                    <path
-                      d="M3 8.5 L6.5 12 L13 4.5"
-                      className="check-anim"
-                      stroke="var(--color-ink)"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                )}
-              </button>
-
-              <button
-                onClick={() => onSetActive(active ? null : task.id)}
-                className="min-w-0 flex-1 cursor-pointer py-1 text-left"
-                title="Set as active task"
-              >
-                <span
-                  className={`block truncate font-bold ${task.done ? 'text-ink/40 line-through' : ''}`}
-                >
-                  {task.title}
-                </span>
-                {active && <span className="text-xs font-bold text-coral">● focusing on this</span>}
-              </button>
-
-              <span className="flex shrink-0 items-center gap-1 text-sm font-bold tabular-nums">
-                <PomoIcon />
-                {task.completedPomos}/{task.estimatedPomos}
+              <span className="inline-flex items-center gap-2">
+                <ChevronIcon open={doneOpen} />
+                Done
               </span>
+              <span className="tabular-nums">{doneTasks.length}</span>
+            </button>
+          </li>
+        )}
 
-              <div
-                className="relative shrink-0"
-                ref={menuId === task.id ? menuRef : undefined}
-              >
-                <button
-                  onClick={() => setMenuId((m) => (m === task.id ? null : task.id))}
-                  className="icon-btn size-8!"
-                  aria-label="Task menu"
-                  aria-expanded={menuId === task.id}
-                >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="var(--color-ink)">
-                    <circle cx="8" cy="3" r="1.6" />
-                    <circle cx="8" cy="8" r="1.6" />
-                    <circle cx="8" cy="13" r="1.6" />
-                  </svg>
-                </button>
-
-                {menuId === task.id && (
-                  <div className="anim-pop rounded-xl! absolute top-full right-0 z-30 mt-1 w-44 border-2 border-ink bg-paper p-1 shadow-brutal-sm!">
-                    <MenuItem
-                      onClick={() => {
-                        onSetActive(active ? null : task.id)
-                        setMenuId(null)
-                      }}
-                    >
-                      {active ? 'Unset active' : 'Set as active'}
-                    </MenuItem>
-                    <MenuItem
-                      disabled={task.estimatedPomos <= 1}
-                      onClick={() => onEstimate(task.id, -1)}
-                    >
-                      Estimate − 1
-                    </MenuItem>
-                    <MenuItem
-                      disabled={task.estimatedPomos >= 20}
-                      onClick={() => onEstimate(task.id, 1)}
-                    >
-                      Estimate + 1
-                    </MenuItem>
-                    <div className="mx-1 my-1 border-t-2 border-ink/10" />
-                    <MenuItem
-                      className="text-coral"
-                      onClick={() => {
-                        onDelete(task.id)
-                        setMenuId(null)
-                      }}
-                    >
-                      Delete
-                    </MenuItem>
-                  </div>
-                )}
-              </div>
-            </li>
-          )
-        })}
+        {doneOpen && doneTasks.map((task, i) => renderTask(task, i, 25))}
       </ul>
     </section>
   )

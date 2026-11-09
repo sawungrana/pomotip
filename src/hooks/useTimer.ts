@@ -6,12 +6,19 @@ import { playChime, requestNotifyPermission, sendNotification } from '../lib/not
 
 type Status = 'idle' | 'running' | 'paused'
 
+interface ModeProgress {
+  remainingMs: number
+  status: 'paused'
+}
+
 interface TimerState {
   mode: Mode
   status: Status
   endsAt: number | null
   remainingMs: number
   cycle: number
+  /** progress of modes you switched away from, so switching back does not reset */
+  stashed: Partial<Record<Mode, ModeProgress>>
 }
 
 const MODE_LABEL: Record<Mode, string> = {
@@ -27,6 +34,7 @@ function initialState(settings: Settings): TimerState {
     endsAt: null,
     remainingMs: modeMinutes(settings, 'focus') * 60_000,
     cycle: 0,
+    stashed: {},
   }
 }
 
@@ -77,12 +85,17 @@ export function useTimer(settings: Settings, onFocusComplete: () => void) {
     const nextMs = modeMinutes(settings, nextMode) * 60_000
     const autoStart = finished === 'focus' ? settings.autoStartBreaks : settings.autoStartFocus
 
+    // a fresh session starts here, so any stale paused progress for that mode goes away
+    const stashed = { ...(state.stashed ?? {}) }
+    delete stashed[nextMode]
+
     setState({
       mode: nextMode,
       status: autoStart ? 'running' : 'idle',
       endsAt: autoStart ? Date.now() + nextMs : null,
       remainingMs: nextMs,
       cycle,
+      stashed,
     })
 
     if (logSession) {
@@ -125,24 +138,60 @@ export function useTimer(settings: Settings, onFocusComplete: () => void) {
   }
 
   const reset = () => {
-    setState((s) => ({
-      ...s,
-      status: 'idle',
-      endsAt: null,
-      remainingMs: modeMinutes(settings, s.mode) * 60_000,
-    }))
+    setState((s) => {
+      const stashed = { ...(s.stashed ?? {}) }
+      delete stashed[s.mode]
+      return {
+        ...s,
+        status: 'idle',
+        endsAt: null,
+        remainingMs: modeMinutes(settings, s.mode) * 60_000,
+        stashed,
+      }
+    })
   }
 
   const skip = () => advance(false)
 
+  /**
+   * Switch tabs without losing work: leaving a mode pauses it and keeps its
+   * remaining time, coming back resumes from that point instead of resetting.
+   */
   const setMode = (mode: Mode) => {
-    setState((s) => ({
-      ...s,
-      mode,
-      status: 'idle',
-      endsAt: null,
-      remainingMs: modeMinutes(settings, mode) * 60_000,
-    }))
+    setState((s) => {
+      if (s.mode === mode) return s
+
+      const stashed = { ...(s.stashed ?? {}) }
+      if (s.status === 'running') {
+        stashed[s.mode] = {
+          remainingMs: Math.max(0, (s.endsAt ?? 0) - Date.now()),
+          status: 'paused',
+        }
+      } else if (s.status === 'paused') {
+        stashed[s.mode] = { remainingMs: s.remainingMs, status: 'paused' }
+      }
+
+      const saved = stashed[mode]
+      delete stashed[mode]
+
+      return saved
+        ? {
+            ...s,
+            mode,
+            status: 'paused',
+            endsAt: null,
+            remainingMs: saved.remainingMs,
+            stashed,
+          }
+        : {
+            ...s,
+            mode,
+            status: 'idle',
+            endsAt: null,
+            remainingMs: modeMinutes(settings, mode) * 60_000,
+            stashed,
+          }
+    })
   }
 
   return {
@@ -151,6 +200,7 @@ export function useTimer(settings: Settings, onFocusComplete: () => void) {
     cycle: state.cycle,
     remainingMs,
     totalMs,
+    stashedModes: Object.keys(state.stashed ?? {}) as Mode[],
     start,
     pause,
     reset,
